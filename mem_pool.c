@@ -279,6 +279,9 @@ void * mem_new_alloc(pool_pt pool, size_t size) {
     if (poolMgr->pool.policy==FIRST_FIT){
         nodeForAlloc = poolMgr->node_heap;
         while (nodeForAlloc->allocated == 1 || nodeForAlloc->alloc_record.size < size){
+            if(nodeForAlloc->next == NULL){
+                return NULL;
+            }
             nodeForAlloc = nodeForAlloc->next;
         }
     }
