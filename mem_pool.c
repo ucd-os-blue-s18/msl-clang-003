@@ -341,6 +341,9 @@ void * mem_new_alloc(pool_pt pool, size_t size) {
         //   update linked list (new node right after the node for allocation)
         newGapNode->next = nodeForAlloc->next;
         newGapNode->prev = nodeForAlloc;
+        if (nodeForAlloc->next != NULL){
+            nodeForAlloc->next->prev = newGapNode;
+        }
         nodeForAlloc->next = newGapNode;
 
         //   add to gap index
@@ -547,12 +550,11 @@ static alloc_status _mem_remove_from_gap_ix(pool_mgr_pt pool_mgr,
         gapNodeIndex++;
     }
 
-    //I swapped the order here slightly. It seemed to require there always to be an empty gap.
+    // update metadata (num_gaps)
+    pool_mgr->pool.num_gaps--;
     // zero out the element at position num_gaps!
     pool_mgr->gap_ix[pool_mgr->pool.num_gaps].size = 0;
     pool_mgr->gap_ix[pool_mgr->pool.num_gaps].node = NULL;
-    // update metadata (num_gaps)
-    pool_mgr->pool.num_gaps--;
     return ALLOC_OK;
 }
 
