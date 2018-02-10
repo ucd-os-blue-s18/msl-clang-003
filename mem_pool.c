@@ -262,19 +262,22 @@ alloc_status mem_pool_close(pool_pt pool) {
 void * mem_new_alloc(pool_pt pool, size_t size) {
     // get mgr from pool by casting the pointer to (pool_mgr_pt)
     pool_mgr_pt poolMgr = (pool_mgr_pt) pool;
+
     // check if any gaps, return null if none
     if (poolMgr->gap_ix_capacity == 0){
         return NULL;
     }
+
     // expand heap node, if necessary, quit on error
     //TODO: not implemented
+
     // check used nodes fewer than total nodes, quit on error
     if (poolMgr->total_nodes <= poolMgr->used_nodes){
         return NULL;
     }
     // get a node for allocation:
     node_pt nodeForAlloc = NULL;
-    gap_pt gapPt = NULL;
+
     // if FIRST_FIT, then find the first sufficient node in the node heap
     if (poolMgr->pool.policy==FIRST_FIT){
         nodeForAlloc = poolMgr->node_heap;
@@ -294,7 +297,6 @@ void * mem_new_alloc(pool_pt pool, size_t size) {
             if (poolMgr->gap_ix[nodeIndex].size >= size){
                 check = 0;
                 nodeForAlloc = poolMgr->gap_ix[nodeIndex].node;
-                gapPt = &poolMgr->gap_ix[nodeIndex];
             }
             else{
                 nodeIndex =  nodeIndex +1;
@@ -320,6 +322,7 @@ void * mem_new_alloc(pool_pt pool, size_t size) {
     // convert gap_node to an allocation node of given size
     nodeForAlloc->alloc_record.size = size;
     nodeForAlloc->allocated = 1;
+
     // adjust node heap:
     //   if remaining gap, need a new node
     //   find an unused one in the node heap
@@ -577,7 +580,7 @@ static alloc_status _mem_sort_gap_ix(pool_mgr_pt pool_mgr) {
 
         if
         (current->size < previous->size ||
-        (current->size = previous->size &&
+        (current->size == previous->size &&
          current->node->alloc_record.mem < previous->node->alloc_record.mem))
         {
             //   swap them (by copying) (remember to use a temporary variable)
