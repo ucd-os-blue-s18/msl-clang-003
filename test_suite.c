@@ -2364,6 +2364,7 @@ void test_pool_stresstest0(void **state) {
         // delete every other allocation
         for (unsigned aix=0; aix < num_allocations; ++aix) {
             if (aix % 2) {
+                INFO("ASSERT WILL FAIL at pix = %u, aix = %u, allocated = %u\n", pix, aix, allocated);
                 assert_int_equal(
                         mem_del_alloc(pools[pix], allocations[pix][aix]),
                         ALLOC_OK);

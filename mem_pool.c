@@ -145,6 +145,9 @@ pool_pt mem_pool_open(size_t size, alloc_policy policy) {
     }
 
     // TODO: (bonus) expand the pool store, if necessary
+    if(_mem_resize_pool_store() != ALLOC_OK){
+        return  NULL;
+    }
 
     // allocate a new mem pool mgr
     // check success, on error return null
@@ -270,6 +273,9 @@ void * mem_new_alloc(pool_pt pool, size_t size) {
 
     // expand heap node, if necessary, quit on error
     //TODO: not implemented
+    if (_mem_resize_node_heap(poolMgr) !=ALLOC_OK){
+        return NULL;
+    }
 
     // check used nodes fewer than total nodes, quit on error
     if (poolMgr->total_nodes <= poolMgr->used_nodes){
@@ -483,19 +489,58 @@ void mem_inspect_pool(pool_pt pool,
 /***********************************/
 static alloc_status _mem_resize_pool_store() {
     // check if necessary
-    /*
-                if (((float) pool_store_size / pool_store_capacity)
-                    > MEM_POOL_STORE_FILL_FACTOR) {...}
-     */
+
+    if (((float) pool_store_size / pool_store_capacity)
+        > MEM_POOL_STORE_FILL_FACTOR) {
+        pool_store = realloc(pool_store, sizeof(pool_mgr_pt)*(pool_store_size * MEM_POOL_STORE_EXPAND_FACTOR));
+        pool_store_capacity = pool_store_capacity + (pool_store_size*MEM_POOL_STORE_EXPAND_FACTOR - pool_store_size);
+        pool_store_size = pool_store_size *MEM_POOL_STORE_EXPAND_FACTOR;
+    }
+
     // don't forget to update capacity variables
 
-    return ALLOC_FAIL;
+    return ALLOC_OK;
 }
 
 static alloc_status _mem_resize_node_heap(pool_mgr_pt pool_mgr) {
     // see above
+    if(((float) pool_mgr->used_nodes/pool_mgr->total_nodes) > MEM_NODE_HEAP_FILL_FACTOR){
+        //create new heap
+        node_pt tempNodeHeap = calloc(pool_mgr->total_nodes*MEM_NODE_HEAP_EXPAND_FACTOR, sizeof(node_t));
+        _mem_invalidate_gap_ix(pool_mgr);
+        node_pt currentNode = pool_mgr->node_heap;
+        unsigned check = 1;
+        unsigned newNodeIX = 0;
+        while(check){
+            if (currentNode == NULL){
+                check = 0;
+            }
+            else{
+                if(newNodeIX > 0) {
+                    tempNodeHeap[newNodeIX].prev = &tempNodeHeap[newNodeIX-1];
+                    tempNodeHeap[newNodeIX-1].next = &tempNodeHeap[newNodeIX];
+                }
+                tempNodeHeap[newNodeIX].used = currentNode->used;
+                tempNodeHeap[newNodeIX].allocated = currentNode->allocated;
+                tempNodeHeap[newNodeIX].alloc_record.size = currentNode->alloc_record.size;
+                tempNodeHeap[newNodeIX].alloc_record.mem = currentNode->alloc_record.mem;
 
-    return ALLOC_FAIL;
+                if(currentNode->used && (!currentNode->allocated)){
+                    _mem_add_to_gap_ix(pool_mgr, tempNodeHeap[newNodeIX].alloc_record.size, &tempNodeHeap[newNodeIX]);
+                }
+
+                newNodeIX ++;
+                currentNode = currentNode->next;
+            }
+        }
+
+        pool_mgr->total_nodes = pool_mgr->total_nodes*MEM_NODE_HEAP_EXPAND_FACTOR;
+        free(pool_mgr->node_heap);
+        pool_mgr->node_heap = tempNodeHeap;
+
+    }
+
+    return ALLOC_OK;
 }
 
 static alloc_status _mem_resize_gap_ix(pool_mgr_pt pool_mgr) {
@@ -599,6 +644,11 @@ static alloc_status _mem_sort_gap_ix(pool_mgr_pt pool_mgr) {
 }
 
 static alloc_status _mem_invalidate_gap_ix(pool_mgr_pt pool_mgr) {
-    return ALLOC_FAIL;
+    for (int i = 0; i < pool_mgr->pool.num_gaps; ++i) {
+        pool_mgr->gap_ix[i].size = 0;
+        pool_mgr->gap_ix[i].node = NULL;
+    }
+    pool_mgr->pool.num_gaps = 0;
+    return ALLOC_OK;
 }
 
