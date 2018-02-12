@@ -272,7 +272,6 @@ void * mem_new_alloc(pool_pt pool, size_t size) {
     }
 
     // expand heap node, if necessary, quit on error
-    //TODO: not implemented
     if (_mem_resize_node_heap(poolMgr) !=ALLOC_OK){
         return NULL;
     }
@@ -359,7 +358,7 @@ void * mem_new_alloc(pool_pt pool, size_t size) {
         nodeForAlloc->next = newGapNode;
 
         //   add to gap index
-        if(_mem_add_to_gap_ix(poolMgr,newGapNode->alloc_record.size,newGapNode) != ALLOC_OK){
+        if(_mem_add_to_gap_ix(poolMgr,newGapNode->alloc_record.size, newGapNode) != ALLOC_OK){
             return NULL;
         }
     }
@@ -525,7 +524,7 @@ static alloc_status _mem_resize_node_heap(pool_mgr_pt pool_mgr) {
                 tempNodeHeap[newNodeIX].alloc_record.size = currentNode->alloc_record.size;
                 tempNodeHeap[newNodeIX].alloc_record.mem = currentNode->alloc_record.mem;
 
-                if(currentNode->used && (!currentNode->allocated)){
+                if(currentNode->used && (currentNode->allocated == 0)){
                     _mem_add_to_gap_ix(pool_mgr, tempNodeHeap[newNodeIX].alloc_record.size, &tempNodeHeap[newNodeIX]);
                 }
 
@@ -545,18 +544,21 @@ static alloc_status _mem_resize_node_heap(pool_mgr_pt pool_mgr) {
 
 static alloc_status _mem_resize_gap_ix(pool_mgr_pt pool_mgr) {
     // see above
-
-    return ALLOC_FAIL;
+    if(((float)pool_mgr->pool.num_gaps/pool_mgr->gap_ix_capacity)>MEM_GAP_IX_FILL_FACTOR){
+        pool_mgr->gap_ix = realloc(pool_mgr->gap_ix, sizeof(gap_t)*pool_mgr->gap_ix_capacity*MEM_GAP_IX_EXPAND_FACTOR);
+        pool_mgr->gap_ix_capacity = pool_mgr->gap_ix_capacity*MEM_GAP_IX_EXPAND_FACTOR;
+    }
+    return ALLOC_OK;
 }
 
 static alloc_status _mem_add_to_gap_ix(pool_mgr_pt pool_mgr,
                                        size_t size,
                                        node_pt node) {
 
-    // TODO: (bonus) expand the gap index, if necessary (call the function)
-
-    //alloc_status result = _mem_resize_gap_ix(pool_mgr);
-    //if (result != ALLOC_OK) return ALLOC_FAIL;
+    if(_mem_resize_gap_ix(pool_mgr) != ALLOC_OK){
+        return ALLOC_FAIL;
+    }
+    
 
     // add the entry at the end
     // check success
